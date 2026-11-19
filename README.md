@@ -7,10 +7,10 @@ This project shows how to use pre-trained machine learning models to solve four 
 2. Audio Processing (Speech-to-Text)
 3. Image Processing (Image Classification)
 4. Video Processing (Object Detection)
+5. Local LLM (Large Language Model) Deployment
 
 **Important:** No model training was done. All models are pre-trained and used directly. This is called "inference".
 
-**Note:** The LLM (Large Language Model) task could not be completed because of internet download problems. Details are at the end of this report.
 
 ## Summary Table
 
@@ -20,26 +20,28 @@ This project shows how to use pre-trained machine learning models to solve four 
 | Audio Processing | Hugging Face | Wav2Vec2 | Complete |
 | Image Processing | PyTorch | ResNet50 | Complete |
 | Video Processing | Hugging Face + OpenCV | DETR-ResNet50 | Complete |
-| LLM | llama-cpp-python | Llama-2-7B | Not Completed (Download Issue) |
+| LLM | llama-cpp-python | Qwen2.5-1.5B | Complete |
 
 ## Frameworks Used
 - Hugging Face Transformers: Text, Audio, Video
 - PyTorch: Image
 - OpenCV: Video frame extraction
+- llama-cpp-python: Local LLM inference
 
 ## Conclusion
-This project successfully used pre-trained models for four different tasks. The only problem was the local LLM, which could not be downloaded because of internet issues.
+This project successfully used pre-trained models for five different tasks. The local LLM task was initially challenging due to large model download issues, but it was successfully completed by using a smaller, efficient model (Qwen2.5-1.5B).
 
 ## How to Run
 1. Install Python 3.12.
 2. Create a virtual environment: `python -m venv venv`
 3. Activate it: `source venv/bin/activate`
-4. Install libraries: `pip install transformers torch torchvision opencv-python soundfile pillow`
+4. Install libraries: `pip install transformers torch torchvision opencv-python soundfile pillow llama-cpp-python`
 5. Run each script:
    - `python 1_text.py`
    - `python 2_audio.py`
    - `python 3_image.py`
    - `python 4_video.py`
+   - `python 5_llm.py`
 
 
 ### Task 1, (1_text.py): Text Processing (Sentiment Analysis)
@@ -80,9 +82,6 @@ for sentence in sentences:
 ```
 
 ### OUTPUT
-Using a pipeline without specifying a model name and revision in production is not recommended.
-Loading weights: 100%|██████████████████████████████████████████████████████████████████████████████████████| 104/104 [00:00<00:00, 10582.94it/s]
-
 --- Results ---
 Sentence: This assignment is very easy and fun!
 Sentiment: POSITIVE (Score: 0.9999)
@@ -158,9 +157,6 @@ except Exception as e:
 ```
 
 ### OUTPUT
-Loading model...
-Could not reach the Hub ([Errno 8] nodename nor servname provided, or not known). Using cached commit hash for 'facebook/wav2vec2-base-960h'.
-Loading weights: 100%|███████████████████████████████████████████████████████████████████████████████████████| 212/212 [00:00<00:00, 8908.67it/s]
 [transformers] Wav2Vec2ForCTC LOAD REPORT from: facebook/wav2vec2-base-960h
 Key                        | Status  | 
 ---------------------------+---------+-
@@ -335,8 +331,6 @@ print("\nProcessing complete.")
 ```
 
 ### OUTPUT
-Loading model...
-Loading weights: 100%|███████████████████████████████████████████████████████████████████████████████████████| 530/530 [00:00<00:00, 7589.30it/s]
 [transformers] DetrForObjectDetection LOAD REPORT from: facebook/detr-resnet-50
 Key                                                            | Status     |  | 
 ---------------------------------------------------------------+------------+--+-
@@ -402,20 +396,74 @@ Processing complete.
 - Observation: The model detected the giraffe with very high confidence (0.96 - 1.00) in almost every frame.
 
 
-## Task 5: LLM (Large Language Model) - NOT COMPLETED
+### Task 5, (5_llm.py): Local LLM (Large Language Model) Deployment
 
-### Status
-Could not be completed because of download problems.
+### Library Used
+- `llama-cpp-python` for running the LLM locally.
+- Hugging Face Hub for downloading the model.
 
-### What Was Tried
-- Library: `llama-cpp-python`
-- Model: `TheBloke/Llama-2-7B-Chat-GGUF` (4-bit quantized, ~4.5 GB)
+### Model Used
+- `Qwen2.5-1.5B-Instruct` (4-bit quantized version: `Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`)
+- It is a small, fast, and efficient language model.
+- It is trained for instruction-following and chat.
 
-### Errors Encountered
-- `RuntimeError: Task error: File reconstruction error`
-- `curl: (92) HTTP/2 stream 1 was not closed cleanly`
+### How the Model Works
+1. The model is downloaded from Hugging Face using `llama-cpp-python`'s built-in downloader.
+2. The `.gguf` file contains the quantized model weights.
+3. The input text is converted into tokens.
+4. The model predicts the next token in the sequence.
+5. The output is decoded into human-readable text.
 
-These errors mean the internet connection was not stable during the large download.
+### CODE
+```python
+from llama_cpp import Llama
+import os
 
-### Alternative Plan (Not Done)
-A smaller model called `TinyLlama-1.1B-Chat` (~600 MB) was considered but not downloaded because of time limits.
+print("Downloading and loading the model... (This may take a few minutes on the first run)")
+print("Model: Qwen2.5-1.5B (Small, fast, and good for local testing)")
+
+llm = Llama.from_pretrained(
+    repo_id="bartowski/Qwen2.5-1.5B-Instruct-GGUF",
+    filename="Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+    n_ctx=2048,
+    n_threads=4,
+    verbose=False
+)
+
+print("\nModel ready! You can now chat with the AI.")
+print("(Type 'q' to quit)")
+
+while True:
+    question = input("\nYou: ")
+    if question.lower() == 'q':
+        print("Goodbye!")
+        break
+    
+    prompt = f"<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
+    
+    output = llm(
+        prompt,
+        max_tokens=200,
+        stop=["<|im_end|>", "\nYou:"],
+        echo=False
+    )
+    
+    response = output['choices'][0]['text'].strip()
+    print(f"AI: {response}")
+  ```
+
+### OUTPUT
+
+You: What is machine learning?
+AI: Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed. It focuses on developing computer programs that can access data and use it to learn for themselves.
+
+You: Write a short poem about Python.
+AI: Python, a language so clear,
+A tool that brings coders near.
+With indentation strict and true,
+It makes complex tasks feel new.
+From data science to the web,
+Its power flows from edge to edge.
+
+You: q
+Goodbye!
